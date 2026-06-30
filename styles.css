@@ -1,0 +1,101 @@
+/* ============================================================
+   Pixel — design system
+   Thesis: noise resolves into image. Palette travels cold→warm.
+   Cold = unresolved (ice/violet). Warm = resolved (plasma/magma).
+   ============================================================ */
+:root{
+  --void:#070711; --abyss:#0b0c1a; --panel:#11122a; --panel-2:#171834;
+  --line:#1e2042; --line-2:#2a2d5a;
+  --ink:#f6f5ff; --dim:#9a9ab8; --faint:#5c5d7e;
+  --ice:#7aa2ff; --plasma:#ff7a45; --magma:#ff3d6e; --violet:#8b6cff;
+  --warm-grad:linear-gradient(115deg,var(--plasma),var(--magma));
+  --cold-warm:linear-gradient(115deg,var(--ice),var(--magma));
+  --maxw:1240px; --ease:cubic-bezier(.19,1,.22,1); --ease-io:cubic-bezier(.65,0,.35,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--void);color:var(--ink);overflow-x:hidden;
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,sans-serif;
+  font-feature-settings:"ss01","cv05","cv11";-webkit-font-smoothing:antialiased;line-height:1.5;}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 30px}
+img{max-width:100%}
+::selection{background:rgba(255,122,69,.25);color:var(--ink)}
+:focus-visible{outline:2px solid var(--plasma);outline-offset:3px;border-radius:6px}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px;border:3px solid var(--void)}
+
+/* grain over everything for filmic texture */
+.grain{position:fixed;inset:0;z-index:1;opacity:.04;pointer-events:none;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+/* denoise rail — the signature progress spine (scroll = diffusion timestep) */
+.rail{position:fixed;top:0;left:0;right:0;height:2px;z-index:90;background:transparent}
+.rail i{display:block;height:100%;width:0;background:var(--warm-grad);
+  box-shadow:0 0 16px rgba(255,93,110,.6);transition:width .1s linear}
+
+/* nav */
+header{position:fixed;top:0;left:0;right:0;z-index:80;transition:.4s var(--ease)}
+header.solid{backdrop-filter:blur(18px);background:rgba(7,7,17,.6);border-bottom:1px solid var(--line)}
+nav{display:flex;align-items:center;justify-content:space-between;height:74px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.03em;font-size:19px}
+.brand .glyph{width:30px;height:30px;border-radius:9px;position:relative;overflow:hidden;
+  background:var(--warm-grad);box-shadow:0 0 24px rgba(255,93,110,.4)}
+.brand .glyph::before{content:"";position:absolute;inset:0;
+  background:repeating-conic-gradient(from 0deg,#0000 0deg 18deg,rgba(7,7,17,.5) 18deg 20deg)}
+.navlinks{display:flex;gap:34px;font-size:14px;color:var(--dim)}
+.navlinks a{position:relative;transition:.2s var(--ease)}
+.navlinks a:hover,.navlinks a.active{color:var(--ink)}
+.navlinks a.active::after{content:"";position:absolute;left:0;right:0;bottom:-26px;height:2px;background:var(--warm-grad)}
+.nav-cta{display:flex;gap:12px;align-items:center}
+@media(max-width:860px){.navlinks{display:none}}
+
+/* buttons */
+.btn{font-size:14px;font-weight:560;padding:12px 21px;border-radius:12px;transition:.28s var(--ease);
+  letter-spacing:-.01em;display:inline-flex;align-items:center;gap:8px;position:relative;overflow:hidden}
+.btn-ghost{color:var(--dim)} .btn-ghost:hover{color:var(--ink)}
+.btn-line{color:var(--ink);border:1px solid var(--line-2)}
+.btn-line:hover{border-color:var(--ink);transform:translateY(-2px)}
+.btn-warm{background:var(--warm-grad);color:#1a0a05;font-weight:620;
+  box-shadow:0 8px 30px -8px rgba(255,93,110,.5)}
+.btn-warm:hover{transform:translateY(-2px);box-shadow:0 16px 44px -8px rgba(255,93,110,.6)}
+.btn-warm::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
+  transform:translateX(-120%);transition:.6s var(--ease)}
+.btn-warm:hover::after{transform:translateX(120%)}
+
+/* eyebrow */
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);border:1px solid var(--line);
+  padding:7px 15px;border-radius:100px;background:rgba(17,18,42,.5);backdrop-filter:blur(8px)}
+.eyebrow .pulse{width:6px;height:6px;border-radius:50%;background:var(--plasma);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,122,69,.6)}70%{box-shadow:0 0 0 9px rgba(255,122,69,0)}100%{box-shadow:0 0 0 0 rgba(255,122,69,0)}}
+.sec-eyebrow{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+  background:var(--warm-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* headings — heavy, tight, oversized */
+h1{font-size:clamp(48px,9vw,124px);line-height:.92;letter-spacing:-.05em;font-weight:760}
+h2{font-size:clamp(32px,5.2vw,62px);line-height:.98;letter-spacing:-.04em;font-weight:720}
+.lead{color:var(--dim);font-size:clamp(16px,1.9vw,20px);line-height:1.55}
+.heat{background:var(--warm-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* section scaffolding */
+section{padding:120px 0;position:relative;z-index:2}
+.sec-head h2{margin:16px 0 0}
+.sec-head .lead{margin-top:18px;max-width:54ch}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(28px);transition:opacity .7s ease-out, transform .7s ease-out}
+.rv.in{opacity:1;transform:translateY(0)}
+.rv-2{transition-delay:.08s}.rv-3{transition-delay:.16s}.rv-4{transition-delay:.24s}
+
+/* footer */
+footer{padding:70px 0 60px;border-top:1px solid var(--line);margin-top:40px;position:relative;z-index:2}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:22px;color:var(--faint);font-size:13px}
+.foot-links{display:flex;gap:26px}.foot-links a:hover{color:var(--ink)}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .rv{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
