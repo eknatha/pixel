@@ -1,1 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel — Noise becomes film</title>
+<meta name="description" content="Pixel turns a prompt into a finished cinematic film. Watch noise resolve into image — scene by scene, up to five minutes.">
+<meta property="og:title" content="Pixel — Noise becomes film">
+<meta property="og:description" content="Watch a prompt diffuse into a film. Generate, direct, and stitch scenes into a finished cut.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23ff3d6e'/%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='32' y2='32'%3E%3Cstop stop-color='%23ff7a45'/%3E%3Cstop offset='1' stop-color='%23ff3d6e'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* ---------- HERO: full viewport diffusion ---------- */
+  .hero{position:relative;height:100vh;min-height:680px;display:grid;place-items:center;overflow:hidden}
+  #heroField{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(180deg,rgba(7,7,17,.4) 0%,transparent 22%,transparent 60%,rgba(7,7,17,.9) 100%)}
+  .hero-inner{position:relative;z-index:3;text-align:center;padding:0 24px;width:100%;max-width:1100px}
+  .hero h1{margin:24px 0 0}
+  .hero h1 .l1{display:block}
+  .hero h1 .l2{display:block}
+  .hero .lead{max-width:46ch;margin:26px auto 0;color:#c7c7e0}
+
+  /* prompt box */
+  .promptbox{max-width:600px;margin:36px auto 0}
+  .pb-field{display:flex;gap:8px;align-items:center;padding:9px 9px 9px 18px;border-radius:16px;
+    background:rgba(11,12,26,.66);backdrop-filter:blur(16px);border:1px solid var(--line-2);
+    box-shadow:0 30px 90px -30px rgba(0,0,0,.9)}
+  .pb-field:focus-within{border-color:var(--plasma)}
+  .pb-field input{flex:1;background:none;border:0;color:var(--ink);font-size:15px;outline:none;min-width:0}
+  .pb-field input::placeholder{color:var(--faint)}
+  .scrollcue{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:10px}
+  .scrollcue .line{width:1px;height:42px;background:linear-gradient(var(--plasma),transparent);animation:drop 2s var(--ease) infinite}
+  @keyframes drop{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}50.1%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+  /* ---------- TYPE-INTO-FIELD showstopper ---------- */
+  .showstop{padding:140px 0;text-align:center;position:relative}
+  .ftext{width:100%;height:clamp(120px,22vw,300px);display:block;margin:0 auto}
+  .showstop .lead{max-width:48ch;margin:30px auto 0}
+
+  /* ---------- trust ---------- */
+  .trust{padding:40px 0 0;text-align:center}
+  .trust p{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-bottom:22px}
+  .pipes{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;color:var(--faint);font-size:15px;font-weight:560}
+  .pipes span{transition:.2s var(--ease)}.pipes span:hover{color:var(--dim)}
+
+  /* ---------- gallery feed ---------- */
+  .feedhead{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:18px}
+  .feed{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:44px}
+  .tile{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);cursor:pointer;
+    background:#0a0b18;transition:.4s var(--ease)}
+  .tile:hover{border-color:var(--line-2);transform:translateY(-4px)}
+  .tile canvas{position:absolute;inset:0;width:100%;height:100%}
+  .tile .cap{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 13px;z-index:2;
+    background:linear-gradient(transparent,rgba(7,7,17,.92))}
+  .tile .cap .t{font-size:14px;font-weight:580}
+  .tile .cap .m{font-size:11px;color:var(--dim);margin-top:3px}
+  .tile .badge{position:absolute;top:11px;left:11px;z-index:2;font-size:10px;background:rgba(7,7,17,.66);
+    backdrop-filter:blur(4px);padding:3px 9px;border-radius:6px;color:var(--dim)}
+  /* editorial asymmetric spans */
+  .tile.big{grid-column:span 6;aspect-ratio:16/10}
+  .tile.med{grid-column:span 6;aspect-ratio:16/10}
+  .tile.sm{grid-column:span 4;aspect-ratio:4/5}
+  @media(max-width:760px){.feed{grid-template-columns:repeat(2,1fr)}.tile.big,.tile.med{grid-column:span 2;aspect-ratio:16/10}.tile.sm{grid-column:span 1}}
+
+  /* ---------- pipeline (denoise timeline) ---------- */
+  .pipe{margin-top:50px;position:relative}
+  .pipe::before{content:"";position:absolute;left:0;right:0;top:34px;height:1px;background:linear-gradient(90deg,var(--ice),var(--plasma),var(--magma));opacity:.4}
+  .pipe-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:24px}
+  .pstep{position:relative}
+  .pstep .node{width:14px;height:14px;border-radius:50%;background:var(--void);border:2px solid var(--plasma);
+    position:relative;z-index:2;margin-bottom:30px}
+  .pstep:nth-child(1) .node{border-color:var(--ice)}
+  .pstep:nth-child(5) .node{border-color:var(--magma);background:var(--magma);box-shadow:0 0 18px var(--magma)}
+  .pstep .ph{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .pstep h3{font-size:19px;margin:8px 0 9px;letter-spacing:-.02em}
+  .pstep p{font-size:14px;color:var(--dim);line-height:1.55}
+  @media(max-width:860px){.pipe-grid{grid-template-columns:1fr 1fr}.pipe::before{display:none}}
+  @media(max-width:480px){.pipe-grid{grid-template-columns:1fr}}
+
+  /* ---------- spec band ---------- */
+  .specband{margin-top:46px;border:1px solid var(--line);border-radius:22px;overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--abyss))}
+  .spec-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+  .spec{padding:38px 30px;border-right:1px solid var(--line)}
+  .spec:last-child{border-right:0}
+  .spec .v{font-size:38px;font-weight:760;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .spec .v .u{font-size:15px;color:var(--faint);font-weight:500}
+  .spec .k{font-size:13px;color:var(--dim);margin-top:7px}
+  .spec .s{font-size:11.5px;color:var(--faint);margin-top:9px;line-height:1.5}
+  @media(max-width:820px){.spec-grid{grid-template-columns:1fr 1fr}.spec:nth-child(2){border-right:0}.spec{border-bottom:1px solid var(--line)}}
+  @media(max-width:430px){.spec-grid{grid-template-columns:1fr}.spec{border-right:0}}
+
+  /* ---------- CTA ---------- */
+  .cta{position:relative;height:560px;display:grid;place-items:center;text-align:center;border-radius:28px;overflow:hidden;border:1px solid var(--line)}
+  #ctaField{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .cta::after{content:"";position:absolute;inset:0;z-index:1;background:radial-gradient(80% 80% at 50% 50%,transparent,rgba(7,7,17,.7))}
+  .cta-inner{position:relative;z-index:2;padding:0 24px}
+  .cta h2{max-width:18ch;margin:16px auto 0}
+</style>
+</head>
+<body>
+<div class="rail"><i></i></div>
+<div class="grain"></div>
+
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html"><span class="glyph"></span>Pixel</a>
+    <div class="navlinks">
+      <a href="index.html" class="active">Overview</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="models.html">Models</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="app.html">Studio</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="app.html">Sign in</a>
+      <a class="btn btn-warm" href="app.html">Open Studio</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <canvas id="heroField"></canvas>
+    <div class="hero-inner">
+      <span class="eyebrow"><span class="pulse"></span>Diffusion video, up to 5 minutes</span>
+      <h1><span class="l1">Noise becomes</span><span class="l2 heat">film.</span></h1>
+      <p class="lead">Type a line. Watch it resolve into a scene, then a sequence, then a finished cut — characters consistent, voice and music in time. Directed entirely from your browser.</p>
+      <div class="promptbox">
+        <div class="pb-field">
+          <input id="prompt" type="text" aria-label="Describe your video" placeholder="Describe a scene…">
+          <button class="btn btn-warm" id="genBtn">Generate</button>
+        </div>
+      </div>
+    </div>
+    <div class="scrollcue"><span>Scroll to resolve</span><span class="line"></span></div>
+  </section>
+
+  <!-- SHOWSTOPPER: type made of diffusion -->
+  <section class="showstop wrap">
+    <canvas class="ftext" id="ftext" aria-label="Prompt to picture"></canvas>
+    <p class="lead rv">Every frame starts as static. Pixel runs the denoise — and keeps it coherent across hundreds of frames, which is the part a single clip generator can't do.</p>
+  </section>
+
+  <!-- TRUST -->
+  <section class="trust wrap" style="padding-top:0">
+    <p>Bring the model you already trust</p>
+    <div class="pipes"><span>Runway</span><span>Luma</span><span>Kling</span><span>Wan 2.2</span><span>HunyuanVideo</span><span>ElevenLabs</span><span>Suno</span></div>
+  </section>
+
+  <!-- GALLERY FEED -->
+  <section class="wrap">
+    <div class="feedhead">
+      <div class="sec-head"><span class="sec-eyebrow">Made with Pixel</span><h2>Films, resolved.</h2></div>
+      <a class="btn btn-line rv" href="gallery.html">Open the gallery →</a>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-eyebrow">The denoise</span>
+      <h2>From timestep zero to final cut.</h2>
+      <p class="lead">A long video isn't one generation — it's a sequence held together. Pixel runs every stage on the way from noise to picture.</p>
+    </div>
+    <div class="pipe rv">
+      <div class="pipe-grid">
+        <div class="pstep"><div class="node"></div><div class="ph">t = 0 · Prompt</div><h3>Write the story</h3><p>One line or a full script. Pixel drafts the beats and a shot list you can edit.</p></div>
+        <div class="pstep"><div class="node"></div><div class="ph">Scenes</div><h3>Lock the look</h3><p>Each beat becomes a seed-locked scene so characters and style stay consistent.</p></div>
+        <div class="pstep"><div class="node"></div><div class="ph">Generate</div><h3>Resolve in parallel</h3><p>Scenes denoise concurrently on your chosen model. The filmstrip fills in live.</p></div>
+        <div class="pstep"><div class="node"></div><div class="ph">Sound</div><h3>Voice & score</h3><p>Narration and music, timed to the cut automatically.</p></div>
+        <div class="pstep"><div class="node"></div><div class="ph">t = 1 · Export</div><h3>Stitch & ship</h3><p>One file out, up to 4K. Re-roll any single scene without redoing the rest.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEC BAND -->
+  <section class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-eyebrow">Built for length</span>
+      <h2>The numbers most generators won't show.</h2>
+    </div>
+    <div class="specband rv">
+      <div class="spec-grid">
+        <div class="spec"><div class="v">5<span class="u"> min</span></div><div class="k">Max film length</div><div class="s">Assembled from dozens of seed-locked scenes.</div></div>
+        <div class="spec"><div class="v">4K<span class="u"> · 60fps</span></div><div class="k">Export ceiling</div><div class="s">Down to 720p on the free tier.</div></div>
+        <div class="spec"><div class="v">7<span class="u"> models</span></div><div class="k">Bring your own</div><div class="s">Runway, Luma, Kling, Wan, Hunyuan + audio.</div></div>
+        <div class="spec"><div class="v">∞<span class="u"> re-rolls</span></div><div class="k">Per-scene control</div><div class="s">Regenerate one shot, keep the cut.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="wrap">
+    <div class="cta rv">
+      <canvas id="ctaField"></canvas>
+      <div class="cta-inner">
+        <span class="sec-eyebrow">Open Studio</span>
+        <h2>Start from noise.</h2>
+        <p class="lead" style="margin:16px auto 0;max-width:42ch">Write one line and watch it resolve. Runs in your browser, no setup.</p>
+        <div style="margin-top:30px"><a class="btn btn-warm" href="app.html">Start a project — free</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="foot">
+    <div class="brand" style="font-size:16px"><span class="glyph"></span>Pixel</div>
+    <div class="foot-links"><a href="gallery.html">Gallery</a><a href="models.html">Models</a><a href="pricing.html">Pricing</a><a href="app.html">Studio</a></div>
+    <div>© 2026 · EknathaLabs</div>
+  </div>
+</footer>
+
+<script src="field.js"></script>
+<script src="pixel.js"></script>
+<script>
+// hero diffusion field, scroll-driven resolve
+const hero=DiffusionField(document.getElementById('heroField'),{resolve:0.0,density:1.0});
+const cta=DiffusionField(document.getElementById('ctaField'),{resolve:0.55,density:.9,mouse:false});
+
+// scroll across the hero drives the denoise (timestep = scroll)
+let heroH=window.innerHeight;
+window.addEventListener('resize',()=>heroH=window.innerHeight);
+function heroScroll(){
+  const p=Math.min(1, (window.scrollY)/(heroH*0.9));
+  hero.setResolve(p*0.9);
+}
+window.addEventListener('scroll',heroScroll,{passive:true}); heroScroll();
+
+// prompt generate resolves the hero immediately
+PromptDemo({input:'prompt',btn:'genBtn',onGenerate:()=>hero.setResolve(1)});
+
+// type-into-field showstopper
+FieldText(document.getElementById('ftext'),'PROMPT → PICTURE');
+
+// gallery feed — living generative tiles
+const feedData=[
+  {t:'The Lighthouse Keeper',m:'14 scenes · 3:42',cls:'big',g:['#10204a','#070711','#ff7a45']},
+  {t:'Neon Drift',m:'9 scenes · 2:10',cls:'med',g:['#2a1040','#0a0717','#ff3d6e']},
+  {t:'Dune Runner',m:'18 scenes · 4:50',cls:'sm',g:['#3a2410','#140d08','#ffae5c']},
+  {t:'Cloud Whale',m:'12 scenes · 3:05',cls:'sm',g:['#101a3a','#07080f','#7aa2ff']},
+  {t:'Ember City',m:'15 scenes · 3:58',cls:'sm',g:['#3a1020','#1a070f','#ff7a45']},
+];
+const feed=document.getElementById('feed');
+feedData.forEach((d,i)=>{
+  const tile=document.createElement('div');tile.className='tile '+d.cls+' rv';
+  if(i>0) tile.classList.add('rv-'+Math.min(4,i+1));
+  tile.innerHTML=`<canvas></canvas><span class="badge">▸ ${i%2?'1080p':'4K'}</span>
+    <div class="cap"><div class="t">${d.t}</div><div class="m">${d.m}</div></div>`;
+  tile.onclick=()=>location.href='gallery.html';
+  feed.appendChild(tile);
+  tileAnim(tile.querySelector('canvas'),d.g,i);
+});
+if(window.__observeReveals) window.__observeReveals();
+function tileAnim(cv,colors,seed){
+  if(REDUCE){cv.style.background=`linear-gradient(135deg,${colors[0]},${colors[1]})`;return;}
+  const ctx=cv.getContext('2d');let t=seed*7;
+  function fit(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}
+  let running=true;
+  new IntersectionObserver(es=>{running=es[0].isIntersecting;if(running)r();}).observe(cv);
+  window.addEventListener('resize',fit);
+  function r(){
+    if(!running)return;
+    if(cv.width!==cv.clientWidth||cv.height!==cv.clientHeight)fit();
+    const w=cv.width,h=cv.height;
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,colors[0]);g.addColorStop(1,colors[1]);
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);t+=0.008;
+    for(let i=0;i<3;i++){
+      const x=w*(0.5+0.42*Math.sin(t+i*2)),y=h*(0.5+0.42*Math.cos(t*0.8+i*1.5)),rad=Math.min(w,h)*(0.4+0.16*Math.sin(t+i));
+      const rg=ctx.createRadialGradient(x,y,0,x,y,rad);rg.addColorStop(0,colors[2]+'55');rg.addColorStop(1,colors[2]+'00');
+      ctx.fillStyle=rg;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();
+    }
+    requestAnimationFrame(r);
+  }
+  fit();r();
+}
+</script>
+</body>
+</html>
 
