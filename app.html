@@ -143,6 +143,33 @@
   @media(max-width:1080px){.body{grid-template-columns:260px 1fr}.col.right{display:none}}
   @media(max-width:720px){.body{grid-template-columns:1fr}.col.left{display:none}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  /* modals */
+  .modal{position:fixed;inset:0;z-index:200;background:rgba(4,4,10,.78);backdrop-filter:blur(10px);
+    display:none;place-items:center;padding:24px}
+  .modal.show{display:grid}
+  .modal-card{width:min(440px,100%);background:var(--panel);border:1px solid var(--line-2);border-radius:16px;
+    overflow:hidden;box-shadow:0 50px 140px -40px rgba(0,0,0,.9)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .modal-head h3{font-size:16px;letter-spacing:-.02em}
+  .modal-x{width:32px;height:32px;border-radius:8px;color:var(--ink-dim);font-size:16px}
+  .modal-x:hover{background:var(--panel-2);color:var(--ink)}
+  .modal-body{padding:20px}
+  .modal-in{width:100%;background:var(--bg-raise);border:1px solid var(--line);border-radius:9px;padding:11px 12px;font-size:13px;color:var(--ink)}
+  .modal-in:focus{outline:none;border-color:var(--amber)}
+  .modal-actions{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+  .keystatus{margin-top:14px;font-size:12px;padding:9px 11px;border-radius:8px;display:none}
+  .keystatus.ok{display:block;background:rgba(90,209,155,.12);color:var(--green)}
+  .keystatus.err{display:block;background:rgba(255,93,110,.12);color:#ff8a9c}
+  .keystatus.busy{display:block;background:var(--amber-soft);color:var(--amber)}
+  .proj-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto}
+  .proj-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg-raise);transition:.2s var(--ease)}
+  .proj-item:hover{border-color:var(--line-2)}
+  .proj-item .pi-body{flex:1;min-width:0;cursor:pointer}
+  .proj-item .pi-name{font-size:13.5px;font-weight:560;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .proj-item .pi-meta{font-size:11px;color:var(--ink-faint);margin-top:2px}
+  .proj-item .pi-del{width:28px;height:28px;border-radius:7px;color:var(--ink-faint);flex:0 0 28px}
+  .proj-item .pi-del:hover{background:rgba(255,93,110,.12);color:#ff8a9c}
+  .modeBadge-real{background:var(--amber-soft)!important;color:var(--amber)!important;border-color:transparent!important}
 </style>
 </head>
 <body>
@@ -155,7 +182,9 @@
       <div class="proj">▸ <input id="projname" value="Untitled film" spellcheck="false"></div>
     </div>
     <div class="tb-right">
-      <div class="credits">Credits <b id="credits">60</b></div>
+      <div class="credits" id="modeBadge" title="Generation mode">Mock</div>
+      <button class="btn btn-ghost" id="projectsBtn">Projects</button>
+      <button class="btn btn-ghost" id="settingsBtn">⚙ Settings</button>
       <button class="btn btn-ghost" id="exportBtn">Export</button>
       <button class="btn btn-amber" id="renderAll">Render all scenes</button>
     </div>
@@ -200,19 +229,20 @@
         <div class="model-pick">
           <label class="fld" style="margin-top:14px">Generation model</label>
           <select id="model">
-            <option value="mock">Pixel Mock (free preview)</option>
-            <option value="runway">Runway Gen-4 (BYO key)</option>
-            <option value="luma">Luma Dream Machine (BYO key)</option>
-            <option value="kling">Kling via fal.ai (BYO key)</option>
-            <option value="wan">Wan 2.2 self-hosted</option>
+            <option value="mock">Pixel Mock (free, offline)</option>
+            <option value="fal-ltx">LTX Video — fast (fal.ai key)</option>
+            <option value="fal-kling">Kling 1.6 (fal.ai key)</option>
+            <option value="fal-luma">Luma Dream Machine (fal.ai key)</option>
+            <option value="fal-wan">Wan 2.2 (fal.ai key)</option>
           </select>
+          <p class="hint" id="modelHint" style="margin-top:8px">Mock mode renders instant placeholder clips — no key needed. Pick a fal.ai model and add your key in Settings to generate real video.</p>
         </div>
 
         <button class="btn btn-amber breakdown-btn" id="breakdown">⚡ Break into scenes</button>
         <p class="hint">Pixel splits your story into ~8s shots, locks a seed per scene for consistency, then queues them to render.</p>
 
         <div class="keynote">
-          <b>Live deploy note.</b> On GitHub Pages this runs fully offline with a mock engine. To render real video, pick a BYO-key model — the key is stored in your browser only. A public static repo can't hold a shared key; add a Cloudflare Worker proxy later to do that safely.
+          <b>How keys work.</b> Your fal.ai key is stored only in this browser (localStorage) and is sent directly to fal.ai — never to any Pixel server, because there isn't one. Get a key at fal.ai/dashboard/keys.
         </div>
       </div>
     </div>
@@ -229,6 +259,7 @@
               </div>
             </div>
             <div class="frame" id="playerFrame" style="display:none"></div>
+            <video id="playerVideo" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000" playsinline muted></video>
             <div class="ov" id="playerOv" style="display:none"></div>
             <div class="ply" id="playerCtrl" style="display:none">
               <button id="playBtn">▶</button>
@@ -273,246 +304,43 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script>
-/* ============================================================
-   Pixel Studio — offline mock engine.
-   Clean seam for a real API is marked: see generateScene().
-   ============================================================ */
-
-const grads=[
-  'linear-gradient(135deg,#1a2a4a,#0d1626)','linear-gradient(135deg,#3a2a1a,#1a1410)',
-  'linear-gradient(135deg,#2a1a3a,#140d1f)','linear-gradient(135deg,#1a3a2e,#0d1f18)',
-  'linear-gradient(135deg,#3a1a2a,#1f0d16)','linear-gradient(135deg,#243a4a,#0d1a26)',
-  'linear-gradient(135deg,#2a2a1a,#16160d)','linear-gradient(135deg,#1a1a3a,#0d0d1f)',
-  'linear-gradient(135deg,#3a2438,#1f0d18)','linear-gradient(135deg,#1a3a3a,#0d1f1f)'
-];
-
-let state={ scenes:[], selected:null, credits:60, playing:false, playT:0 };
-const $=id=>document.getElementById(id);
-
-function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
-function setCredits(n){state.credits=Math.max(0,n);$('credits').textContent=state.credits;}
-
-/* --- 1. Break script into scenes --------------------------------- */
-function breakIntoScenes(){
-  const text=$('script').value.trim();
-  if(!text){toast('Add a script first.');return;}
-  const target=+$('length').value;
-  const style=$('style').value;
-  // naive sentence split -> scenes; long targets get more scenes by chunking
-  let units=text.split(/(?<=[.!?])\s+/).filter(Boolean);
-  const wantScenes=Math.max(3,Math.round(target/13)); // ~13s screen time per scene incl. pad
-  // expand or merge to roughly hit wantScenes
-  while(units.length<wantScenes){ // split longest by comma
-    let li=units.reduce((m,u,i,a)=>u.length>a[m].length?i:m,0);
-    const parts=units[li].split(/,\s+/);
-    if(parts.length>1){units.splice(li,1,parts.slice(0,Math.ceil(parts.length/2)).join(', '),parts.slice(Math.ceil(parts.length/2)).join(', '));}
-    else units.push(units[li]+' (continued)');
-  }
-  units=units.slice(0,Math.max(wantScenes,units.length>wantScenes?wantScenes:units.length));
-
-  const seedBase=Math.floor(Math.random()*90000);
-  state.scenes=units.map((u,i)=>({
-    id:'sc'+i+'_'+Date.now(),
-    n:i+1,
-    title:shortTitle(u),
-    prompt:`${style} shot — ${u}`,
-    seed:seedBase+i,            // seed locking = consistency across scenes
-    grad:grads[i%grads.length],
-    status:'idle',              // idle | rendering | done
-    progress:0,
-    dur:8
-  }));
-  state.selected=null;
-  renderScenes();renderQueue();renderInspector();
-  $('tlLabel').textContent=`Timeline — ${state.scenes.length} scenes · seed-locked`;
-  toast(`Split into ${state.scenes.length} scenes. Ready to render.`);
-}
-
-function shortTitle(s){
-  const w=s.replace(/[^a-zA-Z ]/g,'').split(/\s+/).filter(Boolean).slice(0,4).join(' ');
-  return w.charAt(0).toUpperCase()+w.slice(1);
-}
-
-/* --- 2. Render scenes (THE API SEAM) ----------------------------- */
-/*
-   To wire a real model, replace the body of generateScene() with a fetch:
-
-   async function generateScene(scene){
-     const key = localStorage.getItem('reel_'+model+'_key');
-     const res = await fetch(API_URL, {method:'POST',
-       headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
-       body: JSON.stringify({prompt:scene.prompt, seed:scene.seed, duration:scene.dur})});
-     // poll the job, then set scene.videoUrl = result.url;
-   }
-   For now we simulate progress so the whole UI works offline.
-*/
-let renderTimer=null;
-function generateScene(scene){ scene.status='rendering'; scene.progress=2; }
-
-function renderAll(){
-  const pending=state.scenes.filter(s=>s.status!=='done');
-  if(!pending.length){toast('Break your script into scenes first.');return;}
-  const cost=pending.reduce((a,s)=>a+s.dur,0);
-  if(cost>state.credits){toast(`Need ${cost} credits, you have ${state.credits}.`);return;}
-  setCredits(state.credits-cost);
-  // start up to 3 in parallel (the "parallel queue" feature)
-  startQueue();
-  toast(`Rendering ${pending.length} scenes · ${cost} credits used.`);
-}
-
-const PARALLEL=3;
-function startQueue(){
-  if(renderTimer) return;
-  renderTimer=setInterval(()=>{
-    // promote queued -> rendering up to PARALLEL concurrent
-    let renderingCount=state.scenes.filter(s=>s.status==='rendering').length;
-    for(const s of state.scenes){
-      if(renderingCount>=PARALLEL) break;
-      if(s.status==='idle'){ generateScene(s); renderingCount++; }
-    }
-    // advance all rendering scenes
-    state.scenes.forEach(s=>{
-      if(s.status==='rendering'){
-        s.progress+=4+Math.random()*10;
-        if(s.progress>=100){s.progress=100;s.status='done';}
-      }
-    });
-    renderScenes();renderQueue();
-    if(state.selected) renderInspector();
-    // finished when nothing is idle or rendering
-    const remaining=state.scenes.some(s=>s.status==='idle'||s.status==='rendering');
-    if(!remaining){
-      clearInterval(renderTimer);renderTimer=null;
-      buildPlayback();toast('Render complete. Your cut is ready.');
-    }
-  },420);
-}
-
-/* --- render the filmstrip ---------------------------------------- */
-function renderScenes(){
-  const wrap=$('scenes');
-  if(!state.scenes.length){wrap.innerHTML='<div style="color:var(--ink-faint);font-size:12.5px;padding:24px 4px">Your scenes will appear here as a filmstrip.</div>';return;}
-  wrap.innerHTML='';
-  state.scenes.forEach(s=>{
-    const el=document.createElement('div');
-    el.className='sc '+s.status+(state.selected===s.id?' sel':'')+(s.status==='idle'?' queued':'');
-    const stateLabel=s.status==='done'?'Ready':s.status==='rendering'?Math.round(s.progress)+'%':'Queued';
-    el.innerHTML=`
-      <div class="thumb" style="background:${s.grad}"></div>
-      <div class="meta">
-        <div class="t">${s.n}. ${s.title}</div>
-        <div class="s"><span class="pip"></span>${stateLabel} · ${s.dur}s</div>
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settingsModal">
+  <div class="modal-card">
+    <div class="modal-head"><h3>Settings</h3><button class="modal-x" id="settingsX">✕</button></div>
+    <div class="modal-body">
+      <label class="fld">fal.ai API key</label>
+      <input class="modal-in" id="falKey" type="password" placeholder="fal_xxxxxxxx:xxxxxxxx" spellcheck="false">
+      <p class="hint">Stored only in this browser. Get one at <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener" style="color:var(--amber)">fal.ai/dashboard/keys</a>. Leave empty to stay in free Mock mode.</p>
+      <label class="fld" style="margin-top:16px">Parallel renders</label>
+      <select class="modal-in" id="parallelSel">
+        <option value="1">1 — gentle on rate limits</option>
+        <option value="2">2</option>
+        <option value="3" selected>3 — faster</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="clearKey">Clear key</button>
+        <button class="btn btn-amber" id="saveSettings">Save</button>
       </div>
-      <div class="pbar"><i style="width:${s.status==='done'?100:s.progress}%"></i></div>`;
-    el.onclick=()=>{state.selected=s.id;renderScenes();renderInspector();showFrame(s);};
-    wrap.appendChild(el);
-  });
-}
-
-/* --- render queue panel ------------------------------------------ */
-function renderQueue(){
-  const done=state.scenes.filter(s=>s.status==='done').length;
-  const rend=state.scenes.filter(s=>s.status==='rendering').length;
-  const q=state.scenes.filter(s=>s.status==='idle').length;
-  $('statDone').textContent=done;$('statRender').textContent=rend;$('statQueue').textContent=q;
-  const list=$('queueList');
-  if(!state.scenes.length){list.innerHTML='<p class="empty-insp">Nothing queued yet.</p>';return;}
-  list.innerHTML='';
-  state.scenes.forEach(s=>{
-    const r=document.createElement('div');
-    r.className='qrow '+s.status;
-    const st=s.status==='done'?'✓ Ready':s.status==='rendering'?Math.round(s.progress)+'%':'Queued';
-    r.innerHTML=`<div class="qi" style="background:${s.grad}"></div>
-      <div class="qt"><div class="a">${s.n}. ${s.title}</div><div class="b">seed ${s.seed} · ${s.dur}s</div></div>
-      <div class="qstate">${st}</div>`;
-    list.appendChild(r);
-  });
-}
-
-/* --- scene inspector --------------------------------------------- */
-function renderInspector(){
-  const ins=$('inspector');
-  const s=state.scenes.find(x=>x.id===state.selected);
-  if(!s){ins.innerHTML='<p class="empty-insp">Select a scene from the timeline to edit its prompt, re-roll it, or change its seed.</p>';return;}
-  ins.innerHTML=`
-    <div class="insp-thumb" style="background:${s.grad}"></div>
-    <label class="fld">Scene ${s.n} prompt</label>
-    <textarea class="insp-prompt" id="inspPrompt">${s.prompt}</textarea>
-    <div class="row" style="margin-top:10px">
-      <div class="ctrl"><label class="fld">Seed</label><input class="numin" id="inspSeed" value="${s.seed}"></div>
-      <div class="ctrl"><label class="fld">Duration (s)</label><input class="numin" id="inspDur" value="${s.dur}"></div>
+      <div id="keyStatus" class="keystatus"></div>
     </div>
-    <div class="insp-actions">
-      <button class="btn btn-ghost" id="reroll">⟳ Re-roll scene</button>
-      <button class="btn btn-amber" id="applyScene">Apply</button>
+  </div>
+</div>
+
+<!-- PROJECTS MODAL -->
+<div class="modal" id="projectsModal">
+  <div class="modal-card">
+    <div class="modal-head"><h3>Projects</h3><button class="modal-x" id="projectsX">✕</button></div>
+    <div class="modal-body">
+      <div class="modal-actions" style="margin-top:0;margin-bottom:14px">
+        <button class="btn btn-ghost" id="newProject">+ New project</button>
+        <button class="btn btn-amber" id="saveProject">Save current</button>
+      </div>
+      <div id="projectList" class="proj-list"><p class="empty-insp">No saved projects yet.</p></div>
     </div>
-    <p class="hint">Re-rolling regenerates only this scene. A new seed changes the shot; the same seed keeps it consistent.</p>`;
-  $('reroll').onclick=()=>{
-    if(state.credits<s.dur){toast('Not enough credits to re-roll.');return;}
-    setCredits(state.credits-s.dur);
-    s.seed=Math.floor(Math.random()*90000);s.grad=grads[Math.floor(Math.random()*grads.length)];
-    s.status='rendering';s.progress=2;renderScenes();renderQueue();renderInspector();startQueue();
-    toast(`Re-rolling scene ${s.n}.`);
-  };
-  $('applyScene').onclick=()=>{
-    s.prompt=$('inspPrompt').value;s.seed=+$('inspSeed').value||s.seed;s.dur=Math.max(2,+$('inspDur').value||8);
-    renderScenes();renderQueue();toast('Scene updated.');
-  };
-}
+  </div>
+</div>
 
-/* --- preview frame + playback ------------------------------------ */
-function showFrame(s){
-  $('playerEmpty').style.display='none';
-  const f=$('playerFrame');f.style.display='block';f.style.background=s.grad;f.style.backgroundSize='cover';
-  $('playerOv').style.display='block';$('playerOv').textContent=`Scene ${s.n} · ${s.title} · seed ${s.seed}`;
-}
-let playTimer=null,totalDur=0,frameStops=[];
-function buildPlayback(){
-  const done=state.scenes.filter(s=>s.status==='done');
-  if(!done.length)return;
-  $('playerCtrl').style.display='flex';
-  totalDur=done.reduce((a,s)=>a+s.dur,0);
-  frameStops=[];let acc=0;done.forEach(s=>{frameStops.push({t:acc,grad:s.grad,n:s.n,title:s.title});acc+=s.dur;});
-  state.playT=0;updatePlayhead();
-  $('ttime').textContent=`00:00 / ${fmt(totalDur)}`;
-}
-function fmt(sec){const m=Math.floor(sec/60),s=Math.floor(sec%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
-function updatePlayhead(){
-  const pct=totalDur?state.playT/totalDur*100:0;
-  $('scrubFill').style.width=pct+'%';
-  $('ttime').textContent=`${fmt(state.playT)} / ${fmt(totalDur)}`;
-  let cur=frameStops[0];for(const fs of frameStops){if(state.playT>=fs.t)cur=fs;}
-  if(cur){const f=$('playerFrame');f.style.display='block';f.style.background=cur.grad;f.style.backgroundSize='cover';$('playerEmpty').style.display='none';
-    $('playerOv').style.display='block';$('playerOv').textContent=`Scene ${cur.n} · ${cur.title}`;}
-}
-function togglePlay(){
-  if(!totalDur){toast('Render scenes first.');return;}
-  state.playing=!state.playing;$('playBtn').textContent=state.playing?'❚❚':'▶';
-  if(state.playing){playTimer=setInterval(()=>{state.playT+=0.1;if(state.playT>=totalDur){state.playT=totalDur;togglePlay();}updatePlayhead();},100);}
-  else clearInterval(playTimer);
-}
-
-/* --- wiring ------------------------------------------------------ */
-$('breakdown').onclick=breakIntoScenes;
-$('renderAll').onclick=renderAll;
-$('addScene').onclick=()=>{
-  if(!state.scenes.length){toast('Break your script first.');return;}
-  const i=state.scenes.length;
-  state.scenes.push({id:'sc'+i+'_'+Date.now(),n:i+1,title:'New scene',prompt:'Cinematic shot — describe this scene',seed:Math.floor(Math.random()*90000),grad:grads[i%grads.length],status:'idle',progress:0,dur:8});
-  renderScenes();renderQueue();toast('Scene added.');
-};
-$('playBtn').onclick=togglePlay;
-$('scrub').onclick=e=>{if(!totalDur)return;const r=e.currentTarget.getBoundingClientRect();state.playT=(e.clientX-r.left)/r.width*totalDur;updatePlayhead();};
-$('exportBtn').onclick=()=>{
-  const done=state.scenes.filter(s=>s.status==='done').length;
-  if(!done){toast('Nothing to export yet — render some scenes.');return;}
-  toast(`Exporting ${fmt(totalDur)} · 1080p — stitching ${done} scenes…`);
-};
-document.querySelectorAll('#aspect button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#aspect button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
-$('model').onchange=e=>{ if(e.target.value!=='mock'){toast('BYO-key model selected — add your API key in settings to render for real.');} };
-
-renderScenes();renderQueue();renderInspector();
-</script>
+<script src="studio.js"></script>
 </body>
 </html>
