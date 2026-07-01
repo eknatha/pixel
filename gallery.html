@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel — Gallery</title>
+<meta name="description" content="Films made with Pixel — resolved from noise, scene by scene.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='32' y2='32'%3E%3Cstop stop-color='%23ff7a45'/%3E%3Cstop offset='1' stop-color='%23ff3d6e'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .ghead{position:relative;padding:150px 0 30px;text-align:center;overflow:hidden}
+  #ghField{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.7;
+    -webkit-mask-image:radial-gradient(110% 100% at 50% 0%,#000 30%,transparent 75%);mask-image:radial-gradient(110% 100% at 50% 0%,#000 30%,transparent 75%)}
+  .ghead>.wrap{position:relative;z-index:2}
+  .ghead h1{font-size:clamp(44px,8vw,96px);margin:20px auto 0;max-width:14ch;line-height:.95}
+  .ghead .lead{max-width:46ch;margin:20px auto 0}
+  .filters{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:36px}
+  .chip{font-size:13px;color:var(--dim);border:1px solid var(--line);padding:8px 16px;border-radius:100px;transition:.2s var(--ease)}
+  .chip:hover{color:var(--ink);border-color:var(--line-2)}
+  .chip.on{background:var(--warm-grad);color:#1a0a05;border-color:transparent;font-weight:560}
+
+  .masonry{columns:4;column-gap:14px;margin-top:10px}
+  @media(max-width:1080px){.masonry{columns:3}}
+  @media(max-width:760px){.masonry{columns:2}}
+  @media(max-width:460px){.masonry{columns:1}}
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:16px;border:1px solid var(--line);
+    overflow:hidden;position:relative;cursor:pointer;transition:.35s var(--ease);background:#0a0b18}
+  .card:hover{border-color:var(--line-2);transform:translateY(-4px)}
+  .card canvas{display:block;width:100%}
+  .card .cap{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 13px;z-index:2;
+    background:linear-gradient(transparent,rgba(7,7,17,.92))}
+  .card .cap .t{font-size:14px;font-weight:580}
+  .card .cap .m{font-size:11px;color:var(--dim);margin-top:4px;display:flex;gap:9px;align-items:center}
+  .card .play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);z-index:2;
+    width:50px;height:50px;border-radius:50%;background:rgba(7,7,17,.5);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.2);display:grid;place-items:center;opacity:0;transition:.25s var(--ease);color:#fff}
+  .card:hover .play{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .card .badge{position:absolute;top:11px;left:11px;z-index:2;font-size:10px;background:rgba(7,7,17,.66);
+    backdrop-filter:blur(4px);padding:3px 9px;border-radius:6px;color:var(--dim)}
+  .card.hide{display:none}
+
+  .lb{position:fixed;inset:0;z-index:200;background:rgba(4,4,10,.88);backdrop-filter:blur(12px);
+    display:none;place-items:center;padding:28px}
+  .lb.show{display:grid}
+  .lb-inner{width:min(920px,100%);background:var(--panel);border:1px solid var(--line-2);border-radius:20px;overflow:hidden;
+    box-shadow:0 60px 160px -40px rgba(0,0,0,.9)}
+  .lb-stage{aspect-ratio:16/9;position:relative;overflow:hidden}
+  .lb-stage canvas{position:absolute;inset:0;width:100%;height:100%}
+  .lb-bar{position:absolute;left:0;bottom:0;height:4px;width:0;background:var(--warm-grad);z-index:3}
+  .lb-meta{padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .lb-meta .t{font-size:18px;font-weight:620}
+  .lb-meta .m{font-size:12.5px;color:var(--dim);margin-top:3px}
+  .lb-close{position:absolute;top:16px;right:16px;z-index:210;width:40px;height:40px;border-radius:50%;
+    background:rgba(7,7,17,.7);backdrop-filter:blur(6px);border:1px solid var(--line-2);color:#fff;font-size:18px}
+</style>
+</head>
+<body>
+<div class="rail"><i></i></div>
+<div class="grain"></div>
+
+<header>
+  <nav class="wrap">
+    <a class="brand" href="index.html"><span class="glyph"></span>Pixel</a>
+    <div class="navlinks">
+      <a href="index.html">Overview</a><a href="gallery.html" class="active">Gallery</a>
+      <a href="models.html">Models</a><a href="pricing.html">Pricing</a><a href="app.html">Studio</a>
+    </div>
+    <div class="nav-cta"><a class="btn btn-ghost" href="app.html">Sign in</a><a class="btn btn-warm" href="app.html">Open Studio</a></div>
+  </nav>
+</header>
+
+<main>
+  <section class="ghead">
+    <canvas id="ghField"></canvas>
+    <div class="wrap">
+      <span class="eyebrow"><span class="pulse"></span>Community feed</span>
+      <h1>Resolved.</h1>
+      <p class="lead">Every film here began as static and was denoised scene by scene. Filter by style; tap any to preview the cut.</p>
+      <div class="filters" id="filters">
+        <button class="chip on" data-f="all">All</button>
+        <button class="chip" data-f="Cinematic">Cinematic</button>
+        <button class="chip" data-f="Animated">Animated</button>
+        <button class="chip" data-f="Documentary">Documentary</button>
+        <button class="chip" data-f="Noir">Noir</button>
+        <button class="chip" data-f="Aerial">Aerial</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding-top:30px">
+    <div class="masonry" id="masonry"></div>
+  </section>
+</main>
+
+<div class="lb" id="lb">
+  <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
+  <div class="lb-inner">
+    <div class="lb-stage"><canvas id="lbCanvas"></canvas><div class="lb-bar" id="lbBar"></div></div>
+    <div class="lb-meta"><div><div class="t" id="lbTitle">—</div><div class="m" id="lbMeta">—</div></div>
+      <a class="btn btn-warm" href="app.html">Make one like this</a></div>
+  </div>
+</div>
+
+<footer class="wrap">
+  <div class="foot">
+    <div class="brand" style="font-size:16px"><span class="glyph"></span>Pixel</div>
+    <div class="foot-links"><a href="index.html">Overview</a><a href="models.html">Models</a><a href="pricing.html">Pricing</a><a href="app.html">Studio</a></div>
+    <div>© 2026 · EknathaLabs</div>
+  </div>
+</footer>
+
+<script src="field.js"></script>
+<script src="pixel.js"></script>
+<script>
+DiffusionField(document.getElementById('ghField'),{resolve:.5,density:.85,mouse:false});
+
+const items=[
+  {t:'The Lighthouse Keeper',style:'Cinematic',m:'14 scenes · 3:42',h:380,g:['#10204a','#070711','#ff7a45']},
+  {t:'Neon Drift',style:'Noir',m:'9 scenes · 2:10',h:300,g:['#2a1040','#0a0717','#ff3d6e']},
+  {t:'Dune Runner',style:'Aerial',m:'18 scenes · 4:50',h:420,g:['#3a2410','#140d08','#ffae5c']},
+  {t:'Tidewatch',style:'Documentary',m:'11 scenes · 2:48',h:320,g:['#103a36','#07120f','#7aa2ff']},
+  {t:'Paper Boats',style:'Animated',m:'7 scenes · 1:30',h:280,g:['#10284a','#070d17','#8b6cff']},
+  {t:'Ember City',style:'Cinematic',m:'15 scenes · 3:58',h:400,g:['#3a1020','#1a070f','#ff7a45']},
+  {t:'Cloud Whale',style:'Animated',m:'12 scenes · 3:05',h:340,g:['#101a3a','#07080f','#7aa2ff']},
+  {t:'Last Signal',style:'Noir',m:'10 scenes · 2:34',h:300,g:['#1a1a2e','#0a0a14','#ff3d6e']},
+  {t:'High Country',style:'Aerial',m:'16 scenes · 4:12',h:420,g:['#103a2a','#07120d','#5ad19b']},
+  {t:'The Archivist',style:'Documentary',m:'13 scenes · 3:20',h:340,g:['#241040','#0d0717','#8b6cff']},
+  {t:'Saltwater',style:'Cinematic',m:'8 scenes · 2:02',h:300,g:['#10204a','#070711','#7aa2ff']},
+  {t:'Afterglow',style:'Animated',m:'10 scenes · 2:40',h:380,g:['#3a1020','#1a070f','#ffae5c']},
+];
+const masonry=document.getElementById('masonry');
+items.forEach((d,i)=>{
+  const card=document.createElement('div');card.className='card';card.dataset.style=d.style;
+  card.innerHTML=`<canvas height="${d.h}"></canvas><span class="badge">▸ ${i%3===0?'4K':'1080p'}</span>
+    <div class="play">▶</div>
+    <div class="cap"><div class="t">${d.t}</div><div class="m"><span>${d.style}</span><span>·</span><span>${d.m}</span></div></div>`;
+  card.onclick=()=>openLB(d);
+  masonry.appendChild(card);
+  tileAnim(card.querySelector('canvas'),d.g,i);
+});
+function tileAnim(cv,colors,seed){
+  if(REDUCE){cv.style.background=`linear-gradient(135deg,${colors[0]},${colors[1]})`;cv.height=cv.clientWidth*1.1;return;}
+  const ctx=cv.getContext('2d');let t=seed*7,running=true;
+  new IntersectionObserver(es=>{running=es[0].isIntersecting;if(running)r();}).observe(cv);
+  function r(){if(!running)return;const w=cv.width=cv.clientWidth;const h=cv.height;
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,colors[0]);g.addColorStop(1,colors[1]);
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);t+=0.008;
+    for(let i=0;i<3;i++){const x=w*(0.5+0.4*Math.sin(t+i*2)),y=h*(0.5+0.4*Math.cos(t*0.7+i*1.4)),rad=Math.min(w,h)*(0.42+0.15*Math.sin(t+i));
+      const rg=ctx.createRadialGradient(x,y,0,x,y,rad);rg.addColorStop(0,colors[2]+'4d');rg.addColorStop(1,colors[2]+'00');
+      ctx.fillStyle=rg;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();}
+    requestAnimationFrame(r);}
+  r();
+}
+document.getElementById('filters').addEventListener('click',e=>{
+  if(!e.target.classList.contains('chip'))return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));e.target.classList.add('on');
+  const f=e.target.dataset.f;
+  document.querySelectorAll('.card').forEach(c=>c.classList.toggle('hide', f!=='all'&&c.dataset.style!==f));
+});
+const lb=document.getElementById('lb');let lbRaf,lbBarIv;
+function openLB(d){
+  document.getElementById('lbTitle').textContent=d.t;
+  document.getElementById('lbMeta').textContent=`${d.style} · ${d.m}`;
+  lb.classList.add('show');
+  const cv=document.getElementById('lbCanvas');
+  if(!REDUCE){const ctx=cv.getContext('2d');let t=0;cancelAnimationFrame(lbRaf);
+    (function r(){const w=cv.width=cv.clientWidth,h=cv.height=cv.clientHeight;
+      const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,d.g[0]);g.addColorStop(1,d.g[1]);
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);t+=0.01;
+      for(let i=0;i<4;i++){const x=w*(0.5+0.4*Math.sin(t+i*1.7)),y=h*(0.5+0.4*Math.cos(t*0.8+i)),rad=Math.min(w,h)*(0.4+0.15*Math.sin(t+i));
+        const rg=ctx.createRadialGradient(x,y,0,x,y,rad);rg.addColorStop(0,d.g[2]+'4d');rg.addColorStop(1,d.g[2]+'00');
+        ctx.fillStyle=rg;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();}
+      lbRaf=requestAnimationFrame(r);})();
+  } else cv.style.background=`linear-gradient(135deg,${d.g[0]},${d.g[1]})`;
+  const bar=document.getElementById('lbBar');let p=0;bar.style.width='0';clearInterval(lbBarIv);
+  lbBarIv=setInterval(()=>{p+=0.6;bar.style.width=Math.min(100,p)+'%';if(p>=100)clearInterval(lbBarIv);},100);
+}
+function closeLB(){lb.classList.remove('show');cancelAnimationFrame(lbRaf);clearInterval(lbBarIv);}
+document.getElementById('lbClose').onclick=closeLB;
+lb.onclick=e=>{if(e.target===lb)closeLB();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();});
+</script>
+</body>
+</html>
